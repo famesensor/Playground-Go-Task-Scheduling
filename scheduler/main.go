@@ -39,7 +39,7 @@ func saveTaskToRedis(keyGroup string, task Task, date time.Time) {
 		fmt.Errorf("add to redis is error : %v", err)
 	}
 
-	fmt.Println("Add task to redis success")
+	fmt.Printf("Add task to redis success id : %v, at : %v", task.Id, date)
 }
 
 func buildModelToJson(value interface{}) []byte {
