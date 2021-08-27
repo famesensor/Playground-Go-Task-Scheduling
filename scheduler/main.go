@@ -1,20 +1,20 @@
 package main
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis"
 )
 
 var (
 	redisConn *redis.Client
-	ctx       = context.Background()
 )
 
-type DateModel struct {
+type Task struct {
 	Id     string
+	Detail string
 	Status string
 }
 
@@ -27,16 +27,26 @@ func init() {
 }
 
 func main() {
-	md := DateModel{
-		Status: "expire",
-	}
-	saveTaskToRedis("promotion", md, time.Now().Add(time.Second*10))
+	saveTaskToRedis("key:task", Task{Id: "task_uuid_1", Detail: "You must be learn everything", Status: "waiting"}, time.Now().Add(time.Second*10))
+	saveTaskToRedis("key:task", Task{Id: "task_uuid_2", Detail: "You must be go to shop", Status: "waiting"}, time.Now().Add(time.Minute*15))
 }
 
-func saveTaskToRedis(key string, dateModel DateModel, date time.Time) {
-	fmt.Printf("key : %v, status : %v, date : %v", key, dateModel.Status, date.Unix())
-	err := redisConn.Do(ctx, "ZADD", key, dateModel, float64(date.Unix())).Err()
+func saveTaskToRedis(keyGroup string, task Task, date time.Time) {
+	data := buildModelToJson(task)
+
+	_, err := redisConn.ZAdd(keyGroup, redis.Z{Score: float64(date.Unix()), Member: data}).Result()
 	if err != nil {
-		fmt.Errorf("save to redis error : %v", err)
+		fmt.Errorf("add to redis is error : %v", err)
 	}
+
+	fmt.Println("Add task to redis success")
+}
+
+func buildModelToJson(value interface{}) []byte {
+	js, err := json.Marshal(value)
+	if err != nil {
+		fmt.Errorf("build model to json error : %v", err)
+	}
+
+	return js
 }
