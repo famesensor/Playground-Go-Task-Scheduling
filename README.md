@@ -1,5 +1,5 @@
 # Playground-Go-Task-Scheduling
-## This project for learn task scheduling in go with redis
+This project for learn task scheduling in go with redis
 
 # Run Service
 ```
