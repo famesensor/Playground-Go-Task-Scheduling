@@ -1,18 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis"
 )
 
 var (
 	redisConn *redis.Client
-	ctx       = context.Background()
 )
 
 func init() {
@@ -23,27 +21,34 @@ func init() {
 	})
 }
 
-// Poll checks Redis to determine whether scheduled tasks need to be run or not.
 func Poll(interval time.Duration, done <-chan os.Signal) {
 	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Checking for scheduled tasks... at : ", time.Now())
-			response, err := redisConn.Do(ctx, "ZREMRANGEBYSCORE", "promotion", "-inf").Result()
-			if err != nil {
-				fmt.Errorf("error redis : %v", err)
-			}
-			fmt.Println(response)
-			// if len(response) == 0 {
-			// 	fmt.Println("task is empty")
-			// }
+			fmt.Println("scheduled tasks at : ", time.Now())
+			now := time.Now().Unix()
+			res := redisConn.Do("ZRANGEBYSCORE", "key:task", "-inf", float64(now)).Val()
 
-			// for _, res := range response {
-			// 	fmt.Printf("task is redis : %v\n", res)
-			// }
+			s := res.([]interface{})
+			if len(s) == 0 {
+				fmt.Println("task is empty")
+			}
+
+			for _, task := range s {
+				fmt.Println("task : ", task)
+
+				// do something task...
+
+				// Delete task from redis
+				_, err := redisConn.ZRem("key:task", task).Result()
+				if err != nil {
+					fmt.Errorf("delete value in redis error : %v", err)
+				}
+				fmt.Println("task is success")
+			}
 		case <-done:
-			fmt.Println("Shutting down poller")
+			fmt.Println("shutting down poller")
 			return
 		}
 	}
@@ -52,6 +57,7 @@ func Poll(interval time.Duration, done <-chan os.Signal) {
 func main() {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
-	fmt.Println("Polling Redis every 10 seconds for scheduled tasks...")
-	Poll(10*time.Second, c)
+
+	fmt.Println("scheduled tasks running every 15 second")
+	Poll(15*time.Second, c)
 }
